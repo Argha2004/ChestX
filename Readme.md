@@ -1,11 +1,7 @@
 # ChestX: AI-Powered Chest X-Ray Disease Detection System
 
-<!-- Standard Markdown -->
-![ChestX Thumbnail](D:\PROJECTS\ChestX\public\ChestX.png)
-
-<!-- HTML for better control (e.g., resizing and centering) -->
 <p align="center">
-  <img src="path/to/your/thumbnail.png" alt="ChestX Thumbnail" width="600"/>
+  <img src="public/ChestX.png" alt="ChestX Thumbnail" width="600"/>
 </p>
 
 
