@@ -36,8 +36,6 @@ dist/
 
 # Model Checkpoints
 
-*.pth
-*.pt
 *.ckpt
 *.onnx
 *.h5
