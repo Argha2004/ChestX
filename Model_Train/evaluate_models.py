@@ -33,7 +33,7 @@ from dataset import ChestXrayDataset
 # EDIT PATHS
 # ==========================
 
-ROOT = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Dataset"
+ROOT = r"Your Dataset Root Path Here"
 
 CSV_FILE = os.path.join(
     ROOT,
@@ -45,11 +45,11 @@ TEST_LIST = os.path.join(
     "test_list.txt"
 )
 
-RESNET_MODEL = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\ResNet34\ResNet34.pth"
-DENSENET_BCE_MODEL = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\DenseNet121\DenseNet121.pth"
-DENSENET_WEIGHTED_MODEL = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\DenseNet121-WB\best_model.pth"
+RESNET_MODEL = r"Your First Model Path Here"             # Only ResNet Model
+DENSENET_BCE_MODEL = r"Your Second Model Path Here"      # Only DenseNet with Normal BCE Loss Model
+DENSENET_WEIGHTED_MODEL = r"Your Third Model Path Here"  # Only DenseNet with weighted BCE Loss Model
 
-OUTPUT_DIR = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\evaluation_results"
+OUTPUT_DIR = r"Your Root Path Here\evaluation_results"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ==========================

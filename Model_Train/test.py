@@ -7,9 +7,9 @@ from PIL import Image
 # PATHS
 # ==================================
 
-MODEL_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\DenseNet121-WB\best_model.pth"
+MODEL_PATH = r"Your Model Path Here"
 
-IMAGE_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Test Photo\Pneumonia.png"
+IMAGE_PATH = r"Your Test Image Path Here"
 
 
 # ==================================
