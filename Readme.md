@@ -68,20 +68,34 @@ ChestX/
 │   └── Visualization Components
 │
 ├── Backend/
-│   ├── FastAPI Server
-│   ├── Model Inference
-│   ├── Image Processing
-│   ├── Grad-CAM Generation
-│   └── REST API Endpoints
+│   ├── app/
+│   │     ├── models/
+│   │     │    ├── prediction.py
+│   │     │    └── schemas.py
+│   │     ├── utils/
+│   │     │    └── image_processor.py 
+│   │     └── main.py     
+│   ├── models
+│   ├── start_server.bat    # Start Backend Server on Windows System
+│   ├── start_server.sh     # Start Backend Server on Linux System
+│   ├── requirements.txt
+│   ├── Readme.md
+│   └── .gitignore
 │
 ├── Model Train/
-│   ├── Dataset Processing
-│   ├── Training Scripts
-│   ├── Validation Scripts
-│   ├── Evaluation Metrics
-│   ├── DenseNet121 Training
-│   └── Model Checkpoints
-│
+│   ├── Check_Cuda.py             # Check If Your System Have Cuda or Not
+│   ├── download_dataset.py       # Download NIH Chest-Xray Dataset
+│   ├── dataset.py                # Connect Dataset to Neural Network
+│   ├── train.py                  # Train Your CNN Model From Scratch
+│   ├── test.py                   # Test Your Trained Model
+│   ├── evaluate_models.py        # Compare Your Models to Each Other
+│   ├── chestx.ipynb              # Run All Scripts in Kaggle/Google Colab
+│   ├── requirements.txt
+│   └── Readme.md
+│        
+├── License
+├── .gitignore
+├──
 └── README.md
 ```
 
@@ -102,7 +116,7 @@ Chest X-Ray Image
   Image Preprocessing
         │
         ▼
- DenseNet121 AI Model
+ DenseNet121/EfficientNet-B0/EfficientNetV2-S AI Model
         │
         ▼
  Disease Prediction
@@ -272,7 +286,7 @@ The project is designed to support large-scale public chest X-ray datasets such 
 ### Clone Repository
 
 ```bash
-git clone https://github.com/your-username/ChestX.git
+git clone https://github.com/Argha2004/ChestX.git
 cd ChestX
 ```
 
@@ -344,6 +358,8 @@ This project is intended for educational, research, and development purposes onl
 ---
 
 ## Author
+
+Arghadeep Pakhira , Dr. Bidyut Saha
 
 Developed as part of an AI-powered Medical Imaging and Chest X-Ray Disease Detection research project.
 
