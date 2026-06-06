@@ -1,9 +1,0 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-env/
-.env
-models/*.pth
-app/**/__pycache__/
-*.log

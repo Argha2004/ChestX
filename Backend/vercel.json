@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.12",
+      "excludeFiles": "{__pycache__/**,*.py[cod],venv/**,env/**,.venv/**,models/*.pth,*.log}"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",

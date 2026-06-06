@@ -3,14 +3,20 @@ import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
 
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+
 # ==================================
 # PATHS
 # ==================================
 
-MODEL_PATH = r"Your Model Path Here"   # Your trained Model Path Here
-
-IMAGE_PATH = r"Your Test Image Path Here"   # Your Test Image Path Here
-
+MODEL_PATH = r"Your Model Path Here"
+IMAGE_PATH = r"Your Test Image Path Here"
 
 # ==================================
 # DEVICE
@@ -60,27 +66,12 @@ transform = transforms.Compose([
 # CREATE MODEL
 # ==================================
 
-
-
-##For ResNet34 Model
-# model = models.resnet34(weights=None)
-
-# model.fc = nn.Linear(
-#     model.fc.in_features,
-#     14
-# )
-
-
-##For DenseNet121 Model
 model = models.densenet121(weights=None)
 
 model.classifier = nn.Linear(
     model.classifier.in_features,
     14
 )
-
-
-
 
 # ==================================
 # LOAD CHECKPOINT
@@ -101,24 +92,31 @@ model.load_state_dict(
 )
 
 model = model.to(DEVICE)
-
 model.eval()
 
 print("Model Loaded Successfully")
 
 # ==================================
+# GRAD-CAM TARGET LAYER
+# ==================================
+
+target_layers = [
+    model.features[-1]
+]
+
+# ==================================
 # LOAD IMAGE
 # ==================================
 
-image = Image.open(
+original_image = Image.open(
     IMAGE_PATH
 ).convert("RGB")
 
-image = transform(image)
+image = original_image.copy()
 
-image = image.unsqueeze(0)
-
-image = image.to(DEVICE)
+image_tensor = transform(image)
+image_tensor = image_tensor.unsqueeze(0)
+image_tensor = image_tensor.to(DEVICE)
 
 # ==================================
 # INFERENCE
@@ -126,7 +124,7 @@ image = image.to(DEVICE)
 
 with torch.no_grad():
 
-    outputs = model(image)
+    outputs = model(image_tensor)
 
     probabilities = torch.sigmoid(
         outputs
@@ -176,27 +174,27 @@ for disease, prob in results[:5]:
     )
 
 # ==================================
-# DISEASE DETECTION
+# DETECTED DISEASES
 # ==================================
 
 print("\n" + "=" * 60)
 print("DETECTED DISEASES (>30%)")
 print("=" * 60)
 
-detected = False
+detected_indices = []
 
-for disease, prob in results:
+for idx, prob in enumerate(probabilities):
 
     if prob >= 0.30:
 
-        detected = True
+        detected_indices.append(idx)
 
         print(
-            f"{disease:<20}"
+            f"{LABELS[idx]:<20}"
             f"{prob * 100:.2f}%"
         )
 
-if not detected:
+if len(detected_indices) == 0:
 
     print(
         "No disease detected with high confidence."
@@ -216,3 +214,75 @@ for disease, prob in results:
         f"{disease:<20}"
         f"{prob * 100:.2f}%"
     )
+
+# ==================================
+# PREPARE IMAGE FOR GRAD-CAM
+# ==================================
+
+rgb_img = np.array(
+    original_image.resize((224, 224))
+).astype(np.float32) / 255.0
+
+cam = GradCAM(
+    model=model,
+    target_layers=target_layers
+)
+
+# ==================================
+# GENERATE GRAD-CAM
+# ==================================
+
+print("\n" + "=" * 60)
+print("GENERATING GRAD-CAM")
+print("=" * 60)
+
+if len(detected_indices) == 0:
+
+    detected_indices = [
+        np.argmax(probabilities)
+    ]
+
+for idx in detected_indices:
+
+    disease = LABELS[idx]
+
+    targets = [
+        ClassifierOutputTarget(idx)
+    ]
+
+    grayscale_cam = cam(
+        input_tensor=image_tensor,
+        targets=targets
+    )[0]
+
+    visualization = show_cam_on_image(
+        rgb_img,
+        grayscale_cam,
+        use_rgb=True
+    )
+
+    save_path = (
+        f"gradcam_{disease}.jpg"
+    )
+
+    cv2.imwrite(
+        save_path,
+        cv2.cvtColor(
+            visualization,
+            cv2.COLOR_RGB2BGR
+        )
+    )
+
+    print(
+        f"Saved: {save_path}"
+    )
+
+    plt.figure(figsize=(8, 8))
+    plt.imshow(visualization)
+    plt.title(
+        f"Grad-CAM: {disease}"
+    )
+    plt.axis("off")
+    plt.show()
+
+print("\nDone.")
