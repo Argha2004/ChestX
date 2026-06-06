@@ -8,9 +8,7 @@ env/
 .venv/
 .env
 
-# PyTorch Model Weights
-*.pth
-*.pt
+
 
 # Uploads and processed images
 uploads/
