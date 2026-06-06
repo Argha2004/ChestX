@@ -15,8 +15,9 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 # PATHS
 # ==================================
 
-MODEL_PATH = r"Your Model Path Here"
-IMAGE_PATH = r"Your Test Image Path Here"
+MODEL_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\DenseNet121-WB\best_model.pth"
+
+IMAGE_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Test Photo\Cardiomegaly.png"
 
 # ==================================
 # DEVICE
@@ -63,7 +64,7 @@ transform = transforms.Compose([
 ])
 
 # ==================================
-# CREATE MODEL
+# MODEL
 # ==================================
 
 model = models.densenet121(weights=None)
@@ -101,7 +102,7 @@ print("Model Loaded Successfully")
 # ==================================
 
 target_layers = [
-    model.features[-1]
+    model.features.denseblock4
 ]
 
 # ==================================
@@ -112,9 +113,10 @@ original_image = Image.open(
     IMAGE_PATH
 ).convert("RGB")
 
-image = original_image.copy()
+image_tensor = transform(
+    original_image
+)
 
-image_tensor = transform(image)
 image_tensor = image_tensor.unsqueeze(0)
 image_tensor = image_tensor.to(DEVICE)
 
@@ -131,23 +133,14 @@ with torch.no_grad():
     ).cpu().numpy()[0]
 
 # ==================================
-# SORT RESULTS
+# BEST PREDICTION
 # ==================================
 
-results = list(
-    zip(LABELS, probabilities)
-)
+best_idx = np.argmax(probabilities)
 
-results.sort(
-    key=lambda x: x[1],
-    reverse=True
-)
+best_disease = LABELS[best_idx]
 
-# ==================================
-# TOP PREDICTION
-# ==================================
-
-best_disease, best_prob = results[0]
+best_prob = probabilities[best_idx]
 
 print("\n" + "=" * 60)
 print("MOST LIKELY DISEASE")
@@ -159,64 +152,7 @@ print(
 )
 
 # ==================================
-# TOP 5 DISEASES
-# ==================================
-
-print("\n" + "=" * 60)
-print("TOP 5 POSSIBLE DISEASES")
-print("=" * 60)
-
-for disease, prob in results[:5]:
-
-    print(
-        f"{disease:<20}"
-        f"{prob * 100:.2f}%"
-    )
-
-# ==================================
-# DETECTED DISEASES
-# ==================================
-
-print("\n" + "=" * 60)
-print("DETECTED DISEASES (>30%)")
-print("=" * 60)
-
-detected_indices = []
-
-for idx, prob in enumerate(probabilities):
-
-    if prob >= 0.30:
-
-        detected_indices.append(idx)
-
-        print(
-            f"{LABELS[idx]:<20}"
-            f"{prob * 100:.2f}%"
-        )
-
-if len(detected_indices) == 0:
-
-    print(
-        "No disease detected with high confidence."
-    )
-
-# ==================================
-# ALL PROBABILITIES
-# ==================================
-
-print("\n" + "=" * 60)
-print("ALL DISEASE PROBABILITIES")
-print("=" * 60)
-
-for disease, prob in results:
-
-    print(
-        f"{disease:<20}"
-        f"{prob * 100:.2f}%"
-    )
-
-# ==================================
-# PREPARE IMAGE FOR GRAD-CAM
+# GRAD-CAM
 # ==================================
 
 rgb_img = np.array(
@@ -228,61 +164,56 @@ cam = GradCAM(
     target_layers=target_layers
 )
 
+targets = [
+    ClassifierOutputTarget(best_idx)
+]
+
+grayscale_cam = cam(
+    input_tensor=image_tensor,
+    targets=targets
+)[0]
+
+visualization = show_cam_on_image(
+    rgb_img,
+    grayscale_cam,
+    use_rgb=True
+)
+
 # ==================================
-# GENERATE GRAD-CAM
+# SAVE RESULT
 # ==================================
 
-print("\n" + "=" * 60)
-print("GENERATING GRAD-CAM")
-print("=" * 60)
+save_path = (
+    f"gradcam_{best_disease}.jpg"
+)
 
-if len(detected_indices) == 0:
-
-    detected_indices = [
-        np.argmax(probabilities)
-    ]
-
-for idx in detected_indices:
-
-    disease = LABELS[idx]
-
-    targets = [
-        ClassifierOutputTarget(idx)
-    ]
-
-    grayscale_cam = cam(
-        input_tensor=image_tensor,
-        targets=targets
-    )[0]
-
-    visualization = show_cam_on_image(
-        rgb_img,
-        grayscale_cam,
-        use_rgb=True
+cv2.imwrite(
+    save_path,
+    cv2.cvtColor(
+        visualization,
+        cv2.COLOR_RGB2BGR
     )
+)
 
-    save_path = (
-        f"gradcam_{disease}.jpg"
-    )
+print(
+    f"\nGrad-CAM Saved: {save_path}"
+)
 
-    cv2.imwrite(
-        save_path,
-        cv2.cvtColor(
-            visualization,
-            cv2.COLOR_RGB2BGR
-        )
-    )
+# ==================================
+# DISPLAY RESULT
+# ==================================
 
-    print(
-        f"Saved: {save_path}"
-    )
+plt.figure(figsize=(8, 8))
 
-    plt.figure(figsize=(8, 8))
-    plt.imshow(visualization)
-    plt.title(
-        f"Grad-CAM: {disease}"
-    )
-    plt.axis("off")
-    plt.show()
+plt.imshow(visualization)
+
+plt.title(
+    f"{best_disease} "
+    f"({best_prob * 100:.2f}%)"
+)
+
+plt.axis("off")
+
+plt.show()
 
 print("\nDone.")
