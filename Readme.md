@@ -75,7 +75,8 @@ ChestX/
 │   │     ├── utils/
 │   │     │    └── image_processor.py 
 │   │     └── main.py     
-│   ├── models
+│   ├── models/
+│   │    └── Model.pth      # Your Trained Model
 │   ├── start_server.bat    # Start Backend Server on Windows System
 │   ├── start_server.sh     # Start Backend Server on Linux System
 │   ├── requirements.txt
