@@ -1,0 +1,25 @@
+﻿# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+
+# Virtual Environments
+venv/
+env/
+.venv/
+.env
+
+# PyTorch Model Weights
+*.pth
+*.pt
+
+# Uploads and processed images
+uploads/
+images/
+
+# IDE / OS generated files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+_init_.py
