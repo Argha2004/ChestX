@@ -1,0 +1,177 @@
+# =========================
+
+# Python
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+
+venv/
+env/
+.venv/
+ENV/
+
+# Jupyter Notebook
+
+.ipynb_checkpoints/
+
+# Python Build
+
+build/
+dist/
+*.egg-info/
+
+# Logs
+
+*.log
+
+# Environment Variables
+
+.env
+.env.*
+
+# Model Checkpoints
+
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.h5
+
+# Dataset Files
+
+dataset/
+datasets/
+data/
+images/
+downloads/
+
+# Large Archives
+
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# =========================
+
+# Android Studio
+
+# =========================
+
+.gradle/
+.idea/
+local.properties
+
+# Android Build Files
+
+/build
+/app/build
+
+# APK & Bundle Files
+
+*.apk
+*.aab
+
+# Generated Files
+
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing Keys
+
+*.jks
+*.keystore
+
+# =========================
+
+# Kotlin / Java
+
+# =========================
+
+*.class
+*.jar
+
+# =========================
+
+# FastAPI / Backend
+
+# =========================
+
+instance/
+.cache/
+
+# Uvicorn
+
+uvicorn.log
+
+# =========================
+
+# VS Code
+
+# =========================
+
+.vscode/
+
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+
+# Kaggle
+
+# =========================
+
+kaggle.json
+
+# =========================
+
+# TensorBoard
+
+# =========================
+
+runs/
+events.out.tfevents.*
+
+# =========================
+
+# Evaluation Outputs
+
+# =========================
+
+predictions/
+results/
+outputs/
+checkpoints/
+weights/
+
+# =========================
+
+# Grad-CAM Outputs
+
+# =========================
+
+gradcam/
+heatmaps/
+
+# =========================
+
+# Temporary Files
+
+# =========================
+
+tmp/
+temp/
+*.tmp
