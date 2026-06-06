@@ -50,6 +50,17 @@ API Documentation (Swagger UI): `http://localhost:8000/docs`
 
 Alternative Documentation (ReDoc): `http://localhost:8000/redoc`
 
+### Deploying to Vercel
+
+This repository includes a Vercel configuration that serves the FastAPI app from `api/index.py`.
+
+1. Push the repo to GitHub.
+2. Import the project into Vercel.
+3. Set the root directory to `Backend` if Vercel does not detect it automatically.
+4. Deploy using the existing Python runtime configuration.
+
+The deployed app will expose the same FastAPI routes defined in `app/main.py`.
+
 ## API Endpoints
 
 ### Health Check
@@ -256,6 +267,12 @@ Build and run:
 docker build -t chest-xray-api .
 docker run -p 8000:8000 chest-xray-api
 ```
+
+### Vercel Notes
+
+- `api/index.py` is the deployment entrypoint.
+- `.vercelignore` excludes the large local model file and cache artifacts from the upload.
+- If the model file is not present in the deployed environment, the API falls back to mock predictions.
 
 ## Performance Optimization
 

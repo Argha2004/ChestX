@@ -1,7 +1,11 @@
-from fastapi import FastAPI
+"""Vercel entrypoint for the FastAPI backend."""
 
-app = FastAPI()
+from pathlib import Path
+import sys
 
-@app.get("/")
-def root():
-    return {"status": "running"}
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.main import app  # noqa: E402
