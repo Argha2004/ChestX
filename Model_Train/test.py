@@ -7,9 +7,9 @@ from PIL import Image
 # PATHS
 # ==================================
 
-MODEL_PATH = r"Your Model Path Here"
+MODEL_PATH = r"Your Model Path Here"   # Your trained Model Path Here
 
-IMAGE_PATH = r"Your Test Image Path Here"
+IMAGE_PATH = r"Your Test Image Path Here"   # Your Test Image Path Here
 
 
 # ==================================

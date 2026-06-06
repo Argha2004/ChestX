@@ -33,7 +33,7 @@ from dataset import ChestXrayDataset
 # EDIT PATHS
 # ==========================
 
-ROOT = r"Your Dataset Root Path Here"
+ROOT = r"Your Dataset Root Path Here"  # Your Dataset Root Path Here
 
 CSV_FILE = os.path.join(
     ROOT,
