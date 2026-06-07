@@ -4,6 +4,10 @@
   <img src="public/ChestX.png" alt="ChestX Thumbnail" width="600"/>
 </p>
 
+<p align="center">
+  <img src="public/Screenshot.png" alt="ChestX Thumbnail" width="600"/>
+</p>
+
 
 ## Overview
 
