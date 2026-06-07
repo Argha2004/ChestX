@@ -1,3 +1,12 @@
+---
+title: ChestX Backend
+emoji: 🫁
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # Chest X-Ray Classification Backend
 
 FastAPI backend for chest X-ray disease classification with AI model inference.
