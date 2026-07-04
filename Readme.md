@@ -204,11 +204,12 @@ The project is designed to support large-scale public chest X-ray datasets such 
 * Image Upload
 * Camera Capture
 * Prediction Dashboard
-* Offile On Device Mobile Inference
+* Offline On Device Mobile Inference
 * Disease Confidence Scores
 * Grad-CAM Visualization
 * Analysis History
 * Mobile Optimized Interface
+* PDF Report Export
 
 ### Technology Stack
 
@@ -271,17 +272,6 @@ git clone https://github.com/Argha2004/ChestX.git
 cd ChestX
 ```
 
----
-
-## Run Backend
-
-```bash
-cd Backend
-
-pip install -r requirements.txt
-
-uvicorn app:app --reload
-```
 
 ---
 
@@ -310,7 +300,6 @@ python train.py
 * TensorFlow Lite Deployment
 * Multi-language Support
 * Doctor Dashboard
-* Cloud Deployment
 * Patient Management System
 * Real-Time Clinical Integration
 
