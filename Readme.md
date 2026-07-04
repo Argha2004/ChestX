@@ -75,37 +75,23 @@ ChestX/
 │   ├── API Integration
 │   ├── Camera & Gallery Support
 │   └── Visualization Components
-│
-├── Backend/
-│   ├── app/
-│   │     ├── models/
-│   │     │    ├── prediction.py
-│   │     │    └── schemas.py
-│   │     ├── utils/
-│   │     │    └── image_processor.py 
-│   │     └── main.py     
-│   ├── models/
-│   │    └── Model.pth      # Your Trained Model
-│   ├── start_server.bat    # Start Backend Server on Windows System
-│   ├── start_server.sh     # Start Backend Server on Linux System
-│   ├── requirements.txt
-│   ├── Readme.md
-│   └── .gitignore
-│
 ├── Model Train/
 │   ├── Check_Cuda.py             # Check If Your System Have Cuda or Not
 │   ├── download_dataset.py       # Download NIH Chest-Xray Dataset
-│   ├── dataset.py                # Connect Dataset to Neural Network
-│   ├── train.py                  # Train Your CNN Model From Scratch
-│   ├── test.py                   # Test Your Trained Model
-│   ├── evaluate_models.py        # Compare Your Models to Each Other
+│   ├── dataset.py                # This Dataset Script only for train_script_1
+│   ├── export_onnx.py            # Export best model into onnx Configuration
+│   ├── train_script_1.py         # First Configuration Training Script
+│   ├── train_script_2.py         # Second Configuration Training Script             
+│   ├── ex_train_script.py        # Experiment Configuration Training Script
+│   ├── evaluate_models.py        # Evaluate Your Each Model's Accuracy
 │   ├── chestx.ipynb              # Run All Scripts in Kaggle/Google Colab
+│   ├── test.py                   # Test your Best Model              
 │   ├── requirements.txt
 │   └── Readme.md
 │        
 ├── License
 ├── .gitignore
-├──
+├──  public/
 └── README.md
 ```
 
