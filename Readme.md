@@ -13,7 +13,7 @@
 
 ChestX is an end-to-end Artificial Intelligence system designed for automated chest X-ray disease detection. The project combines Deep Learning, Medical Image Analysis, Backend API Services, and a Modern Android Mobile Application to provide fast and accessible chest radiograph screening.
 
-The system uses a DenseNet121-based deep learning model trained on large-scale chest X-ray datasets to identify multiple thoracic diseases from chest radiographs. Predictions are served through a backend API and visualized through a user-friendly Android application.
+The system uses a CNN-based deep learning model trained on large-scale chest X-ray datasets to identify multiple thoracic diseases from chest radiographs. Predictions are served through a backend API and visualized through a user-friendly Android application.
 
 ---
 
@@ -33,27 +33,20 @@ The system uses a DenseNet121-based deep learning model trained on large-scale c
 * Grad-CAM heatmap generation
 * Visual localization of disease-related regions
 * Model interpretability support
-* Clinical decision support visualization
+* Clinical decision Report support 
 
 ### Android Application
 
 * Modern Android UI using Jetpack Compose
 * Upload X-ray images from gallery
 * Camera image capture support
+* on Device Model Running
 * Real-time disease prediction
 * Confidence score visualization
 * Prediction history
 * Grad-CAM visualization
+* Can Load Your Own Tarined Model
 * Mobile-first design
-
-### Backend API
-
-* FastAPI-based inference server
-* RESTful API architecture
-* Image preprocessing pipeline
-* Model inference endpoint
-* Grad-CAM generation endpoint
-* JSON response support
 
 ### Research-Oriented Development
 
@@ -152,7 +145,7 @@ The model is designed for multi-label classification of chest X-ray diseases inc
 
 ### Model Architecture
 
-* DenseNet121
+* DenseNet121/EfficientNetV2-S/ResNet34/DenseNet201
 * Transfer Learning
 * Multi-label Classification
 * Sigmoid Activation
@@ -211,6 +204,7 @@ The project is designed to support large-scale public chest X-ray datasets such 
 * Image Upload
 * Camera Capture
 * Prediction Dashboard
+* Offile On Device Mobile Inference
 * Disease Confidence Scores
 * Grad-CAM Visualization
 * Analysis History
@@ -230,15 +224,6 @@ The project is designed to support large-scale public chest X-ray datasets such 
 ---
 
 ## Backend
-
-### Features
-
-* FastAPI Framework
-* RESTful APIs
-* Model Loading
-* Batch Inference
-* Grad-CAM Generation
-* JSON Responses
 
 ### Technology Stack
 
@@ -323,9 +308,7 @@ python train.py
 ## Future Improvements
 
 * TensorFlow Lite Deployment
-* Offline Mobile Inference
 * Multi-language Support
-* PDF Report Generation
 * Doctor Dashboard
 * Cloud Deployment
 * Patient Management System
