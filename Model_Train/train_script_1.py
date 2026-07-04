@@ -1,8 +1,13 @@
-#============================
-# Train.py  //Training Script
-#============================
-
-
+# =============================================================
+#  Train.py  —  NIH Chest X-Ray14  |  Tuned Run #1
+#  Hardware target: 30 GB RAM, 16 GB VRAM (single GPU)
+#
+#  Tuned config (vs Run #1 which got 0.8252):
+#    FOCAL_GAMMA  : 2.0  → 1.0   (gentler focal effect)
+#    LR           : 3e-4         (gentler peak LR)
+#    Normal BCE Loss
+#    TTA
+# =============================================================
 
 
 import torch
@@ -21,7 +26,6 @@ from sklearn.metrics import recall_score
 import seaborn as sns
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
-from dataset import ChestXrayDataset
 
 torch.backends.cudnn.benchmark = True
 
@@ -43,7 +47,7 @@ def main():
 # DATASET PATHS
 # ==========================
 
-    ROOT = "Your Root Directory"   #This is For Dataset Root
+    ROOT = "/kaggle/input/datasets/organizations/nih-chest-xrays/data"
 
     CSV = f"{ROOT}/Data_Entry_2017.csv"
 
@@ -55,7 +59,7 @@ def main():
 # ==========================
 
     train_transform = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((320,320)),
         #transforms.RandomCrop((224,224)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(5),
@@ -71,7 +75,7 @@ def main():
     ])
     
     val_transform = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((320,320)),
         transforms.ToTensor(),
         transforms.Normalize(
             [0.485, 0.456, 0.406],
@@ -151,43 +155,63 @@ def main():
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=192,
+        batch_size=64,
         shuffle=True,
-        num_workers=4,
+        num_workers=2,
         pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=2
+        persistent_workers=False,
+        prefetch_factor=1
     )
 
     test_loader = DataLoader(
         test_dataset,
-        batch_size=192,
+        batch_size=64,
         shuffle=False,
-        num_workers=4,
+        num_workers=2,
         pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=2
+        persistent_workers=False,
+        prefetch_factor=1
     )
 
 # ==========================
 # MODEL
 # ==========================
 
-    model = models.densenet121(
-        weights=models.DenseNet121_Weights.IMAGENET1K_V1
+
+    #For Resnet34 Model
+    model = models.resnet34(
+        weights=models.ResNet34_Weights.IMAGENET1K_V1
     )
-    
-    model.classifier = nn.Linear(
-        model.classifier.in_features,
+    model.fc = nn.Linear(
+        model.fc.in_features,
         14
     )
-
     model = model.to(device)
 
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs")
-        model = nn.DataParallel(model)
 
+    #For Densenet121 model
+    # model = models.densenet121(
+    #     weights=models.DenseNet121_Weights.IMAGENET1K_V1
+    # )
+    # model.classifier = nn.Linear(
+    #     model.classifier.in_features,
+    #     14
+    # )
+    # model = model.to(device)
+
+
+    #For EfficientNetV2-S Model
+    # model = models.efficientnet_v2_s(
+    #     weights=models.EfficientNet_V2_S_Weights.IMAGENET1K_V1
+    # )
+    # model.classifier[1] = nn.Linear(
+    #     model.classifier[1].in_features,
+    #     14
+    # )
+    # model = model.to(device)
+
+
+    
 # ==========================
 # LOSS
 # ==========================
@@ -215,8 +239,8 @@ def main():
     )
 
     best_auc = 0
-    epochs = 10
-    patience = 2
+    epochs = 20
+    patience = 3
     counter = 0
     
     metrics = []
@@ -289,7 +313,7 @@ def main():
 
                 images = images.to(device)
 
-                # Original image prediction
+                #Original image prediction
                 outputs1 = model(images)
                 
                 # Horizontally flipped image
@@ -306,6 +330,7 @@ def main():
                     torch.sigmoid(outputs2)
                 ) / 2
 
+
                 all_labels.append(
                     labels.numpy()
                 )
@@ -319,27 +344,27 @@ def main():
 
         try:
 
-            auc = roc_auc_score(
+            val_auc = roc_auc_score(
                 all_labels,
                 all_outputs,
                 average="macro"
             )
 
             print(
-                f"Validation AUC: {auc:.4f}"
+                f"Validation AUC: {val_auc:.4f}"
             )
 
             metrics.append({
                 "epoch": epoch + 1,
                 "loss": train_loss,
-                "auc": auc
+                "auc": val_auc
             })
 
-            scheduler.step(auc)
+            scheduler.step(val_auc)
 
-            if auc > best_auc:
+            if val_auc > best_auc:
             
-                best_auc = auc
+                best_auc = val_auc
             
                 counter = 0
             
@@ -351,13 +376,13 @@ def main():
 
                 torch.save({
                     "epoch": epoch + 1,
-                    "auc": auc,
+                    "auc": val_auc,
                     "model_state_dict": state_dict
                 },
-                "/Model Train/best_model.pth")
+                "/kaggle/working/best_model.pth")
             
                 print(
-                    f"Best model saved! AUC={auc:.4f}"
+                    f"Best model saved! AUC={val_auc:.4f}"
                 )
 
             else:
@@ -383,7 +408,7 @@ def main():
 
 
     pd.DataFrame(metrics).to_csv(
-        "/Model_Train/training_metrics.csv",
+        "/kaggle/working/training_metrics.csv",
         index=False
     )
     
@@ -449,7 +474,7 @@ def main():
     plt.grid(True)
     
     plt.savefig(
-        "/Model_Train/loss_curve.png",
+        "/kaggle/working/loss_curve.png",
         bbox_inches="tight"
     )
     
@@ -473,7 +498,7 @@ def main():
     plt.grid(True)
     
     plt.savefig(
-        "/Model_Train/auc_curve.png",
+        "/kaggle/working/auc_curve.png",
         bbox_inches="tight"
     )
 
@@ -539,7 +564,7 @@ def main():
     plt.grid(True)
     
     plt.savefig(
-        "/Model_Train/roc_curves.png",
+        "/kaggle/working/roc_curves.png",
         bbox_inches="tight"
     )
     
@@ -548,41 +573,7 @@ def main():
     print("ROC Curves saved.")
 
 
-
-# ==========================
-# CLASS DISTRIBUTION PLOT
-# ==========================
     
-    disease_names = train_dataset.labels_list
-    
-    plt.figure(figsize=(12,6))
-    
-    plt.bar(
-        disease_names,
-        positive_count
-    )
-    
-    plt.xticks(rotation=45)
-    
-    plt.ylabel("Number of Positive Samples")
-    
-    plt.title(
-        "Class Distribution - NIH Chest X-ray14"
-    )
-
-    plt.tight_layout()
-    
-    plt.savefig(
-        "/Model_Train/class_distribution.png",
-        bbox_inches="tight"
-    )
-    
-    plt.close()
-    
-    print("Class Distribution Saved.")
-
-
-
     # ==========================
     # CONFUSION MATRICES
     # ==========================
@@ -622,7 +613,7 @@ def main():
             plt.xlabel("Predicted")
     
             plt.savefig(
-                f"/Model_Train/{disease}_cm.png",
+                f"/kaggle/working/{disease}_cm.png",
                 bbox_inches="tight"
             )
     

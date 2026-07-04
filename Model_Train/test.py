@@ -15,9 +15,9 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 # PATHS
 # ==================================
 
-MODEL_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Model\DenseNet121-WB\best_model.pth"
+MODEL_PATH = ""                # Your Best Model Checkpoint Path
 
-IMAGE_PATH = r"D:\PROJECTS\LUNG-DISEASE-DITECTION\Test Photo\Cardiomegaly.png"
+IMAGE_PATH = ""                # Your Test Image Path
 
 # ==================================
 # DEVICE

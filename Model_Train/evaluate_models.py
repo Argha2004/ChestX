@@ -1,526 +1,381 @@
-
-# =====================================================
-# evaluate_models.py
-# Compare:
-# 1. ResNet34 (BCE)
-# 2. DenseNet121 (BCE)
-# 3. DenseNet121 (Weighted BCE)
-# =====================================================
+# =============================================================
+#  Evaluate.py  —  NIH Chest X-Ray14  |  Accuracy report
+#  Matches "Tuned Run #2" (Config 2): 384px, 4-pass TTA.
+#
+#  What it reports:
+#    1. Image-level EXACT-MATCH accuracy  (all 14 findings correct)
+#         -> "X-rays detected fully correct" vs "wrong on >=1 finding"
+#    2. Per-label (Hamming) accuracy       (correct decisions / N*14)
+#    3. Per-class accuracy + TP/FP/FN/TN + precision/recall/F1 + AUC
+#    4. Macro AUC / F1 / precision / recall
+#
+#  Run order on Kaggle:
+#    Cell 1:  !pip install albumentations -q
+#    Cell 2:  paste this file, set EVAL_CFG["CKPT_PATH"], run
+#
+#  IMPORTANT (honesty for the paper):
+#    - AUC is the primary metric; accuracy is imbalance-sensitive.
+#    - If USE_PER_CLASS_THRESHOLDS=True, thresholds are tuned on the
+#      TEST set here for convenience; for a paper, tune them on a
+#      validation split instead and state that clearly.
+# =============================================================
 
 import os
-import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from torchvision import models
+from PIL import Image
+import glob
 from tqdm import tqdm
-from torchvision import models, transforms
-from torch.utils.data import DataLoader
-
 from sklearn.metrics import (
-    roc_auc_score,
-    roc_curve,
-    auc,
-    f1_score,
-    precision_score,
-    recall_score
+    roc_auc_score, precision_score, recall_score, f1_score,
 )
 
-from dataset import ChestXrayDataset
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
-# ==========================
-# EDIT PATHS
-# ==========================
 
-ROOT = r"Your Dataset Root Path Here"  # Your Dataset Root Path Here
-
-CSV_FILE = os.path.join(
-    ROOT,
-    "Data_Entry_2017.csv"
-)
-
-TEST_LIST = os.path.join(
-    ROOT,
-    "test_list.txt"
-)
-
-RESNET_MODEL = r"Your First Model Path Here"             # Only ResNet Model
-DENSENET_BCE_MODEL = r"Your Second Model Path Here"      # Only DenseNet with Normal BCE Loss Model
-DENSENET_WEIGHTED_MODEL = r"Your Third Model Path Here"  # Only DenseNet with weighted BCE Loss Model
-
-OUTPUT_DIR = r"Your Root Path Here\evaluation_results"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# ==========================
-# LABELS
-# ==========================
-
-DISEASES = [
-    "Atelectasis",
-    "Consolidation",
-    "Infiltration",
-    "Pneumothorax",
-    "Edema",
-    "Emphysema",
-    "Fibrosis",
-    "Effusion",
-    "Pneumonia",
-    "Pleural_Thickening",
-    "Cardiomegaly",
-    "Nodule",
-    "Mass",
-    "Hernia"
+# =============================================================
+#  CONSTANTS
+# =============================================================
+DISEASE_LABELS = [
+    "Atelectasis", "Consolidation", "Infiltration",
+    "Pneumothorax", "Edema", "Emphysema", "Fibrosis",
+    "Effusion", "Pneumonia", "Pleural_Thickening",
+    "Cardiomegaly", "Nodule", "Mass", "Hernia"
 ]
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD  = (0.229, 0.224, 0.225)
 
-THRESHOLD = 0.30
 
-DEVICE = torch.device(
-    "cuda" if torch.cuda.is_available()
-    else "cpu"
+# =============================================================
+#  CONFIG
+# =============================================================
+EVAL_CFG = dict(
+    ROOT      = "",                  # Root directory of the dataset
+
+    CKPT_PATH = "",                  # Path to the model checkpoint to evaluate
+    SAVE_DIR  = "",                  # Directory to save evaluation CSVs
+
+    MODEL     = "efficientnet_v2_s",   # "densenet201" | "densenet121" | "efficientnet_v2_s"
+    IMG_SIZE  = 384,
+    BATCH_SIZE = 64,
+    TTA_PASSES = 4,              # set 1 for a fast (no-TTA) pass
+    NUM_WORKERS = 4,
+
+    THRESHOLD = 0.35,                 # global threshold (used if not per-class)
+    USE_PER_CLASS_THRESHOLDS = False, # True -> pick each class's best-F1 threshold
+    DROPOUT = 0.2,
+    SEED = 42,
 )
 
-print("Using:", DEVICE)
 
-# ==========================
-# TRANSFORM
-# ==========================
-
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        [0.485, 0.456, 0.406],
-        [0.229, 0.224, 0.225]
-    )
-])
-
-# ==========================
-# DATASET
-# ==========================
-
-test_dataset = ChestXrayDataset(
-    csv_file=CSV_FILE,
-    root_dir=ROOT,
-    file_list=TEST_LIST,
-    transform=transform
-)
-
-test_loader = DataLoader(
-    test_dataset,
-    batch_size=64,
-    shuffle=False,
-    num_workers=0,
-    pin_memory=True
-)
-
-# ==========================
-# MODEL LOADERS
-# ==========================
-
-def load_resnet34(path):
-
-    model = models.resnet34(weights=None)
-
-    model.fc = nn.Linear(
-        model.fc.in_features,
-        14
-    )
-
-    ckpt = torch.load(
-        path,
-        map_location=DEVICE,
-        weights_only=False
-    )
-
-    model.load_state_dict(
-        ckpt["model_state_dict"]
-    )
-
-    model = model.to(DEVICE)
-    model.eval()
-
-    return model
-
-
-def load_densenet121(path):
-
-    model = models.densenet121(
-        weights=None
-    )
-
-    model.classifier = nn.Linear(
-        model.classifier.in_features,
-        14
-    )
-
-    ckpt = torch.load(
-        path,
-        map_location=DEVICE,
-        weights_only=False
-    )
-
-    model.load_state_dict(
-        ckpt["model_state_dict"]
-    )
-
-    model = model.to(DEVICE)
-    model.eval()
-
-    return model
-
-# ==========================
-# INFERENCE
-# ==========================
-
-def evaluate_model(model, model_name):
-
-    all_labels = []
-    all_outputs = []
-
-    print(f"\nEvaluating {model_name}")
-
-    with torch.no_grad():
-
-        for images, labels in tqdm(test_loader):
-
-            images = images.to(DEVICE)
-
-            outputs = model(images)
-
-            probs = torch.sigmoid(
-                outputs
-            )
-
-            all_labels.append(
-                labels.numpy()
-            )
-
-            all_outputs.append(
-                probs.cpu().numpy()
-            )
-
-    all_labels = np.vstack(
-        all_labels
-    )
-
-    all_outputs = np.vstack(
-        all_outputs
-    )
-
-    macro_auc = roc_auc_score(
-        all_labels,
-        all_outputs,
-        average="macro"
-    )
-
-    binary_preds = (
-        all_outputs >= THRESHOLD
-    ).astype(int)
-
-    macro_f1 = f1_score(
-        all_labels,
-        binary_preds,
-        average="macro",
-        zero_division=0
-    )
-
-    macro_precision = precision_score(
-        all_labels,
-        binary_preds,
-        average="macro",
-        zero_division=0
-    )
-
-    macro_recall = recall_score(
-        all_labels,
-        binary_preds,
-        average="macro",
-        zero_division=0
-    )
-
-    disease_aucs = {}
-
-    for i, disease in enumerate(DISEASES):
-
-        try:
-
-            disease_auc = roc_auc_score(
-                all_labels[:, i],
-                all_outputs[:, i]
-            )
-
-            disease_aucs[disease] = disease_auc
-
-        except Exception:
-
-            disease_aucs[disease] = np.nan
-
-    return {
-        "labels": all_labels,
-        "outputs": all_outputs,
-        "macro_auc": macro_auc,
-        "macro_f1": macro_f1,
-        "macro_precision": macro_precision,
-        "macro_recall": macro_recall,
-        "disease_aucs": disease_aucs
-    }
-
-# ==========================
-# LOAD MODELS
-# ==========================
-
-resnet_model = load_resnet34(
-    RESNET_MODEL
-)
-
-dense_bce_model = load_densenet121(
-    DENSENET_BCE_MODEL
-)
-
-dense_weighted_model = load_densenet121(
-    DENSENET_WEIGHTED_MODEL
-)
-
-# ==========================
-# RUN EVALUATION
-# ==========================
-
-resnet_results = evaluate_model(
-    resnet_model,
-    "ResNet34"
-)
-
-dense_bce_results = evaluate_model(
-    dense_bce_model,
-    "DenseNet121_BCE"
-)
-
-dense_weighted_results = evaluate_model(
-    dense_weighted_model,
-    "DenseNet121_Weighted_BCE"
-)
-
-# ==========================
-# OVERALL COMPARISON
-# ==========================
-
-comparison_df = pd.DataFrame([
-    {
-        "Model": "ResNet34",
-        "Macro_AUC":
-        resnet_results["macro_auc"],
-        "Macro_F1":
-        resnet_results["macro_f1"],
-        "Macro_Precision":
-        resnet_results["macro_precision"],
-        "Macro_Recall":
-        resnet_results["macro_recall"]
-    },
-    {
-        "Model": "DenseNet121_BCE",
-        "Macro_AUC":
-        dense_bce_results["macro_auc"],
-        "Macro_F1":
-        dense_bce_results["macro_f1"],
-        "Macro_Precision":
-        dense_bce_results["macro_precision"],
-        "Macro_Recall":
-        dense_bce_results["macro_recall"]
-    },
-    {
-        "Model": "DenseNet121_Weighted_BCE",
-        "Macro_AUC":
-        dense_weighted_results["macro_auc"],
-        "Macro_F1":
-        dense_weighted_results["macro_f1"],
-        "Macro_Precision":
-        dense_weighted_results["macro_precision"],
-        "Macro_Recall":
-        dense_weighted_results["macro_recall"]
-    }
-])
-
-comparison_df.to_csv(
-    os.path.join(
-        OUTPUT_DIR,
-        "model_comparison.csv"
-    ),
-    index=False
-)
-
-print("\nMODEL COMPARISON")
-print(comparison_df)
-
-# ==========================
-# DISEASE AUC TABLE
-# ==========================
-
-rows = []
-
-for disease in DISEASES:
-
-    rows.append([
-        disease,
-        resnet_results["disease_aucs"][disease],
-        dense_bce_results["disease_aucs"][disease],
-        dense_weighted_results["disease_aucs"][disease]
+# =============================================================
+#  TRANSFORM (val) + DATASET  (same as training)
+# =============================================================
+def build_val_transform(img_size: int = 384):
+    return A.Compose([
+        A.Resize(img_size, img_size),
+        A.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
+        ToTensorV2(),
     ])
 
-disease_auc_df = pd.DataFrame(
-    rows,
-    columns=[
-        "Disease",
-        "ResNet34",
-        "DenseNet121_BCE",
-        "DenseNet121_Weighted_BCE"
-    ]
-)
 
-disease_auc_df.to_csv(
-    os.path.join(
-        OUTPUT_DIR,
-        "disease_auc_comparison.csv"
-    ),
-    index=False
-)
+class ChestXrayDataset(Dataset):
+    def __init__(self, csv_file, root_dir, file_list, transform=None, img_size=384):
+        self.root_dir  = root_dir
+        self.img_size  = img_size
+        self.transform = transform
 
-# ==========================
-# BEST MODEL PER DISEASE
-# ==========================
+        print("[Data] Loading CSV …")
+        df = pd.read_csv(csv_file)
+        print("[Data] Loading file list …")
+        with open(file_list) as f:
+            self.image_names = [l.strip() for l in f if l.strip()]
 
-print("\nBEST MODEL PER DISEASE\n")
+        print("[Data] Indexing image files …")
+        image_paths = glob.glob(os.path.join(root_dir, "**", "*.png"), recursive=True)
+        self.image_dict = {os.path.basename(p): p for p in image_paths}
+        print(f"[Data] Found {len(self.image_dict):,} PNG files")
 
-for _, row in disease_auc_df.iterrows():
+        label_map    = dict(zip(df["Image Index"], df["Finding Labels"]))
+        label_to_idx = {lbl: i for i, lbl in enumerate(DISEASE_LABELS)}
 
-    disease = row["Disease"]
+        n = len(self.image_names)
+        label_matrix = np.zeros((n, len(DISEASE_LABELS)), dtype=np.float32)
+        for row_idx, img_name in enumerate(self.image_names):
+            raw = label_map.get(img_name, "No Finding")
+            for disease in raw.split("|"):
+                col = label_to_idx.get(disease)
+                if col is not None:
+                    label_matrix[row_idx, col] = 1.0
+        self.labels = torch.from_numpy(label_matrix)
+        print(f"[Data] Ready — {n:,} samples")
 
-    scores = {
-        "ResNet34": row["ResNet34"],
-        "DenseNet121_BCE": row["DenseNet121_BCE"],
-        "DenseNet121_Weighted_BCE":
-        row["DenseNet121_Weighted_BCE"]
-    }
+    def __len__(self):
+        return len(self.image_names)
 
-    winner = max(
-        scores,
-        key=scores.get
-    )
+    def __getitem__(self, idx):
+        img_name = self.image_names[idx]
+        img_path = self.image_dict.get(img_name)
+        if img_path is None:
+            img_np = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
+        else:
+            try:
+                with Image.open(img_path) as pil_img:
+                    img_np = np.array(pil_img.convert("RGB"), dtype=np.uint8)
+            except Exception:
+                img_np = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
+        img_tensor = self.transform(image=img_np)["image"]
+        return img_tensor, self.labels[idx]
 
-    print(
-        f"{disease:<20} "
-        f"{winner} "
-        f"({scores[winner]:.4f})"
-    )
 
-# ==========================
-# ROC COMPARISON PLOTS
-# ==========================
+# =============================================================
+#  MODEL  (build the same architecture, then load weights)
+# =============================================================
+def build_model(name: str, num_classes: int = 14, dropout: float = 0.2) -> nn.Module:
+    if name == "densenet201":
+        m = models.densenet201(weights=None)
+        in_f = m.classifier.in_features
+        m.classifier = nn.Sequential(nn.Dropout(p=dropout, inplace=True),
+                                     nn.Linear(in_f, num_classes))
+    elif name == "densenet121":
+        m = models.densenet121(weights=None)
+        in_f = m.classifier.in_features
+        m.classifier = nn.Sequential(nn.Dropout(p=dropout, inplace=True),
+                                     nn.Linear(in_f, num_classes))
+    elif name == "efficientnet_v2_s":
+        m = models.efficientnet_v2_s(weights=None)
+        in_f = m.classifier[1].in_features
+        m.classifier = nn.Sequential(nn.Dropout(p=dropout, inplace=True),
+                                     nn.Linear(in_f, num_classes))
+    else:
+        raise ValueError(f"Unknown MODEL: {name}")
+    return m
 
-labels = resnet_results["labels"]
 
-for i, disease in enumerate(DISEASES):
+# =============================================================
+#  TTA + INFERENCE
+# =============================================================
+@torch.no_grad()
+def tta_predict(model, images, n_passes=4):
+    preds = torch.sigmoid(model(images))
+    if n_passes >= 2:
+        preds = preds + torch.sigmoid(model(torch.flip(images, dims=[3])))
+    if n_passes >= 4:
+        H = images.shape[2]
+        crop = int(H * 0.90)
+        pad  = (H - crop) // 2
+        c1 = images[:, :, pad:pad+crop, pad:pad+crop]
+        c1 = F.interpolate(c1, size=(H, H), mode="bilinear", align_corners=False)
+        preds = preds + torch.sigmoid(model(c1))
+        preds = preds + torch.sigmoid(model(torch.flip(c1, dims=[3])))
+    return preds / n_passes
 
-    plt.figure(figsize=(8, 6))
 
-    models_data = [
-        (
-            "ResNet34",
-            resnet_results["outputs"]
-        ),
-        (
-            "DenseNet121_BCE",
-            dense_bce_results["outputs"]
-        ),
-        (
-            "DenseNet121_Weighted_BCE",
-            dense_weighted_results["outputs"]
-        )
-    ]
+@torch.no_grad()
+def run_inference(model, loader, device, tta_passes=4):
+    model.eval()
+    all_labels, all_probs = [], []
+    for images, labels in tqdm(loader, desc="Inference"):
+        images = images.to(device, non_blocking=True)
+        with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
+            probs = tta_predict(model, images, n_passes=tta_passes)
+        all_labels.append(labels.numpy())
+        all_probs.append(probs.float().cpu().numpy())
+    return np.vstack(all_labels), np.vstack(all_probs)
 
-    for name, outputs in models_data:
 
+# =============================================================
+#  THRESHOLDS + METRICS
+# =============================================================
+def per_class_best_thresholds(labels, probs, grid=None):
+    if grid is None:
+        grid = np.linspace(0.05, 0.95, 19)
+    thr = np.full(labels.shape[1], 0.35, dtype=np.float32)
+    for i in range(labels.shape[1]):
+        best_f1, best_t = -1.0, 0.35
+        for t in grid:
+            yp = (probs[:, i] >= t).astype(int)
+            f = f1_score(labels[:, i], yp, zero_division=0)
+            if f > best_f1:
+                best_f1, best_t = f, t
+        thr[i] = best_t
+    return thr
+
+
+def compute_report(labels, probs, thresholds):
+    """thresholds: array (14,). Returns dict of everything."""
+    N, C = labels.shape
+    preds = (probs >= thresholds[None, :]).astype(int)
+    labs  = labels.astype(int)
+
+    # ---- image-level exact match ----
+    exact_correct = int((preds == labs).all(axis=1).sum())
+    exact_wrong   = N - exact_correct
+
+    # ---- per-label (Hamming) ----
+    total_decisions = N * C
+    correct_decisions = int((preds == labs).sum())
+
+    # ---- per class ----
+    rows = []
+    for i, d in enumerate(DISEASE_LABELS):
+        yt, yp = labs[:, i], preds[:, i]
+        tp = int(((yp == 1) & (yt == 1)).sum())
+        fp = int(((yp == 1) & (yt == 0)).sum())
+        fn = int(((yp == 0) & (yt == 1)).sum())
+        tn = int(((yp == 0) & (yt == 0)).sum())
+        acc = (tp + tn) / max(N, 1)
+        prec = precision_score(yt, yp, zero_division=0)
+        rec  = recall_score(yt, yp, zero_division=0)
+        f1   = f1_score(yt, yp, zero_division=0)
         try:
+            auc_i = roc_auc_score(yt, probs[:, i]) if len(np.unique(yt)) > 1 else float("nan")
+        except Exception:
+            auc_i = float("nan")
+        rows.append(dict(disease=d, thr=float(thresholds[i]), n_pos=int(yt.sum()),
+                         TP=tp, FP=fp, FN=fn, TN=tn, accuracy=acc,
+                         precision=prec, recall=rec, f1=f1, auc=auc_i))
 
-            fpr, tpr, _ = roc_curve(
-                labels[:, i],
-                outputs[:, i]
-            )
+    macro_auc = np.nanmean([r["auc"] for r in rows])
+    macro_f1  = np.mean([r["f1"] for r in rows])
+    macro_p   = np.mean([r["precision"] for r in rows])
+    macro_r   = np.mean([r["recall"] for r in rows])
 
-            roc_auc = auc(
-                fpr,
-                tpr
-            )
-
-            plt.plot(
-                fpr,
-                tpr,
-                label=f"{name} ({roc_auc:.3f})"
-            )
-
-        except Exception as e:
-
-            print(
-                disease,
-                name,
-                e
-            )
-
-    plt.plot(
-        [0, 1],
-        [0, 1],
-        linestyle="--"
+    return dict(
+        N=N, C=C,
+        exact_correct=exact_correct, exact_wrong=exact_wrong,
+        exact_acc=exact_correct / max(N, 1),
+        correct_decisions=correct_decisions, total_decisions=total_decisions,
+        hamming_acc=correct_decisions / max(total_decisions, 1),
+        rows=rows,
+        macro_auc=macro_auc, macro_f1=macro_f1,
+        macro_precision=macro_p, macro_recall=macro_r,
     )
 
-    plt.xlabel(
-        "False Positive Rate"
+
+def print_report(rep, threshold_desc):
+    print("\n" + "=" * 68)
+    print("  NIH ChestX-ray14  —  EVALUATION REPORT")
+    print("=" * 68)
+    print(f"  Test images        : {rep['N']:,}")
+    print(f"  Findings per image : {rep['C']}")
+    print(f"  Threshold          : {threshold_desc}")
+
+    print("\n" + "-" * 68)
+    print("  1) IMAGE-LEVEL EXACT-MATCH ACCURACY (all 14 findings correct)")
+    print("-" * 68)
+    print(f"  Fully correct X-rays : {rep['exact_correct']:,} / {rep['N']:,} "
+          f"({100*rep['exact_acc']:.2f}%)")
+    print(f"  Wrong on >=1 finding : {rep['exact_wrong']:,} / {rep['N']:,} "
+          f"({100*(1-rep['exact_acc']):.2f}%)")
+    print("  (Strictest metric — hard to score high on 14 simultaneous labels.)")
+
+    print("\n" + "-" * 68)
+    print("  2) PER-LABEL (HAMMING) ACCURACY (every disease decision)")
+    print("-" * 68)
+    print(f"  Correct decisions    : {rep['correct_decisions']:,} / "
+          f"{rep['total_decisions']:,} ({100*rep['hamming_acc']:.2f}%)")
+    print("  (High partly because most labels are negative — imbalance inflates it.)")
+
+    print("\n" + "-" * 68)
+    print("  3) PER-CLASS BREAKDOWN")
+    print("-" * 68)
+    hdr = (f"  {'Disease':<20}{'thr':>5}{'AUC':>8}{'Acc':>8}"
+           f"{'Prec':>8}{'Rec':>8}{'F1':>8}{'TP':>7}{'FP':>7}{'FN':>7}")
+    print(hdr)
+    print("  " + "-" * (len(hdr) - 2))
+    for r in rep["rows"]:
+        print(f"  {r['disease']:<20}{r['thr']:>5.2f}{r['auc']:>8.4f}"
+              f"{r['accuracy']:>8.4f}{r['precision']:>8.4f}{r['recall']:>8.4f}"
+              f"{r['f1']:>8.4f}{r['TP']:>7}{r['FP']:>7}{r['FN']:>7}")
+
+    print("\n" + "-" * 68)
+    print("  4) MACRO AVERAGES")
+    print("-" * 68)
+    print(f"  Macro AUC       : {rep['macro_auc']:.4f}   <- primary metric")
+    print(f"  Macro F1        : {rep['macro_f1']:.4f}")
+    print(f"  Macro Precision : {rep['macro_precision']:.4f}")
+    print(f"  Macro Recall    : {rep['macro_recall']:.4f}")
+    print("=" * 68 + "\n")
+
+
+# =============================================================
+#  MAIN
+# =============================================================
+def main():
+    torch.manual_seed(EVAL_CFG["SEED"]); np.random.seed(EVAL_CFG["SEED"])
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[Eval] Device: {device}")
+    if device.type == "cuda":
+        print(f"[Eval] GPU   : {torch.cuda.get_device_name(0)}")
+        torch.backends.cudnn.benchmark = True
+
+    ROOT = EVAL_CFG["ROOT"]
+    val_tf = build_val_transform(EVAL_CFG["IMG_SIZE"])
+
+    test_ds = ChestXrayDataset(
+        csv_file  = f"{ROOT}/Data_Entry_2017.csv",
+        root_dir  = ROOT,
+        file_list = f"{ROOT}/test_list.txt",
+        transform = val_tf,
+        img_size  = EVAL_CFG["IMG_SIZE"],
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=EVAL_CFG["BATCH_SIZE"], shuffle=False,
+        num_workers=EVAL_CFG["NUM_WORKERS"], pin_memory=True,
     )
 
-    plt.ylabel(
-        "True Positive Rate"
-    )
+    print(f"\n[Eval] Building {EVAL_CFG['MODEL']} and loading checkpoint …")
+    model = build_model(EVAL_CFG["MODEL"], 14, EVAL_CFG["DROPOUT"]).to(device)
+    ckpt = torch.load(EVAL_CFG["CKPT_PATH"], map_location=device, weights_only=False)
+    state = ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    if missing:    print(f"[Eval] Missing keys   : {missing}")
+    if unexpected: print(f"[Eval] Unexpected keys: {unexpected}")
+    if "auc" in ckpt:   print(f"[Eval] Checkpoint stored AUC   : {ckpt['auc']:.4f}")
+    if "epoch" in ckpt: print(f"[Eval] Checkpoint stored epoch : {ckpt['epoch']}")
 
-    plt.title(
-        f"{disease} ROC Comparison"
-    )
+    print(f"\n[Eval] Running inference ({EVAL_CFG['TTA_PASSES']}-pass TTA) …")
+    labels, probs = run_inference(model, test_loader, device, EVAL_CFG["TTA_PASSES"])
 
-    plt.legend()
+    if EVAL_CFG["USE_PER_CLASS_THRESHOLDS"]:
+        thresholds = per_class_best_thresholds(labels, probs)
+        thr_desc = "per-class best-F1 (tuned on test — see header caveat)"
+    else:
+        thresholds = np.full(14, EVAL_CFG["THRESHOLD"], dtype=np.float32)
+        thr_desc = f"global {EVAL_CFG['THRESHOLD']}"
 
-    plt.grid(True)
+    rep = compute_report(labels, probs, thresholds)
+    print_report(rep, thr_desc)
 
-    plt.savefig(
-        os.path.join(
-            OUTPUT_DIR,
-            f"{disease}_ROC_Comparison.png"
-        ),
-        bbox_inches="tight"
-    )
+    # ---- save CSV summary ----
+    os.makedirs(EVAL_CFG["SAVE_DIR"], exist_ok=True)
+    df = pd.DataFrame(rep["rows"])
+    summary_path = os.path.join(EVAL_CFG["SAVE_DIR"], "evaluation_per_class_efficientnet.csv")
+    df.to_csv(summary_path, index=False)
 
-    plt.close()
+    overall = pd.DataFrame([{
+        "test_images": rep["N"],
+        "exact_match_correct": rep["exact_correct"],
+        "exact_match_wrong": rep["exact_wrong"],
+        "exact_match_accuracy": rep["exact_acc"],
+        "hamming_accuracy": rep["hamming_acc"],
+        "macro_auc": rep["macro_auc"],
+        "macro_f1": rep["macro_f1"],
+        "macro_precision": rep["macro_precision"],
+        "macro_recall": rep["macro_recall"],
+    }])
+    overall_path = os.path.join(EVAL_CFG["SAVE_DIR"], "evaluation_overall_efficientnet.csv")
+    overall.to_csv(overall_path, index=False)
+    print(f"[Eval] Saved: {summary_path}")
+    print(f"[Eval] Saved: {overall_path}")
 
-print("\nROC plots saved.")
 
-# ==========================
-# OVERALL WINNER
-# ==========================
-
-best_idx = comparison_df[
-    "Macro_AUC"
-].idxmax()
-
-winner = comparison_df.loc[
-    best_idx,
-    "Model"
-]
-
-winner_auc = comparison_df.loc[
-    best_idx,
-    "Macro_AUC"
-]
-
-print("\n====================")
-print("BEST OVERALL MODEL")
-print("====================")
-print(
-    f"{winner} : {winner_auc:.4f}"
-)
+if __name__ == "__main__":
+    main()3

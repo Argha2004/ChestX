@@ -1,6 +1,7 @@
-#=============================================
-# Dataset.py   //Bridge Between Dataset and NN
-#=============================================
+#=============================================================
+# Dataset.py   //This Dataset Script Only for Config 1 Training Script
+# Before Running Train Script-1 Run This Dataset.py Script.
+#=============================================================
 
 
 
@@ -164,7 +165,7 @@ if __name__ == "__main__":
 
     from torchvision import transforms
 
-    DATASET_ROOT = "Your Root Directory"    #This is For Dataset Root
+    DATASET_ROOT = "/kaggle/input/datasets/organizations/nih-chest-xrays/data"
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
