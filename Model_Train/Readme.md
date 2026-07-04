@@ -13,13 +13,16 @@ Model Train/
 │
 ├── Check_Cuda.py              # Check Your System Have Cuda or Not
 ├── chestx.ipynb               # For Train Your Model On Kaggle
-├── dataset.py                 # Prepare Dataset
 ├── download_dataset.py        # Download NIH Dataset
-├── evaluate_models.py         # Compare 3 Models
 ├── Readme.md 
 ├── requirements.txt
-├── test.py                    # Test Your Trained Model
-└── train.py                   # Train Your Model From Scratch
+├── dataset.py                 # dataset is for only train_script_1
+├── train_script_1.py          # This is the first configuration of training Script
+├── train_script_2.py          # This is the second configuration of training script
+├── ex_train_script.py         # This is the Experiment Configuration of training script
+├── test.py                    # Test your best model
+├── evaluate_models.py         # Evaluate Your All Model's Accuracy
+└── export_onnx.py             # Export Your Pytorch Model into ONNX Config.
 ``` 
 
 ---

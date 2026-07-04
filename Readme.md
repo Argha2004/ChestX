@@ -79,7 +79,7 @@ ChestX/
 │   ├── Check_Cuda.py             # Check If Your System Have Cuda or Not
 │   ├── download_dataset.py       # Download NIH Chest-Xray Dataset
 │   ├── dataset.py                # This Dataset Script only for train_script_1
-│   ├── export_onnx.py            # Export best model into onnx Configuration
+│   ├── export_onnx.py            # Export Your Pytorch model into onnx Configuration
 │   ├── train_script_1.py         # First Configuration Training Script
 │   ├── train_script_2.py         # Second Configuration Training Script             
 │   ├── ex_train_script.py        # Experiment Configuration Training Script
