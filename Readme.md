@@ -11,7 +11,7 @@
 
 ## Overview
 
-ChestX is an end-to-end Artificial Intelligence system designed for automated chest X-ray disease detection. The project combines Deep Learning, Medical Image Analysis, Backend API Services, and a Modern Android Mobile Application to provide fast and accessible chest radiograph screening.
+ChestX is an end-to-end Artificial Intelligence system designed for automated chest X-ray disease detection. The project combines Deep Learning, Medical Image Analysis and a Modern Android Mobile Application to provide fast and accessible chest radiograph screening.
 
 The system uses a CNN-based deep learning model trained on large-scale chest X-ray datasets to identify multiple thoracic diseases from chest radiographs. Predictions are served through a backend API and visualized through a user-friendly Android application.
 
