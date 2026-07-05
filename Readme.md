@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img src="public/Home.png" alt="Mobile Screenshot 1" width="220"/>
+  <img src="public/Home.jpeg" alt="Mobile Screenshot 1" width="220"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="public/Report.png" alt="Mobile Screenshot 2" width="220"/>
+  <img src="public/Report.jpeg" alt="Mobile Screenshot 2" width="220"/>
 </p>
 
 
