@@ -22,7 +22,7 @@ The system uses a CNN-based deep learning model trained on large-scale chest X-r
 ### AI Disease Detection
 
 * Multi-label chest disease classification
-* DenseNet121-based deep learning architecture
+* CNN-based deep learning architecture
 * Transfer learning approach
 * Weighted Binary Cross Entropy Loss
 * ROC-AUC based evaluation
@@ -62,12 +62,9 @@ The system uses a CNN-based deep learning model trained on large-scale chest X-r
 ```text
 ChestX/
 │
-├── Frontend/
-│   ├── Android Application
-│   ├── Jetpack Compose UI
-│   ├── API Integration
-│   ├── Camera & Gallery Support
-│   └── Visualization Components
+├── ChestX_App/
+│   └── android/                  # Frontend of whole App
+│   
 ├── Model Train/
 │   ├── Check_Cuda.py             # Check If Your System Have Cuda or Not
 │   ├── download_dataset.py       # Download NIH Chest-Xray Dataset
@@ -327,9 +324,9 @@ This project is intended for educational, research, and development purposes onl
 
 ## Author
 
-**Arghadeep Pakhira**     Student | Sister Nivedita University
+**Arghadeep Pakhira**
 
-**Dr. Bidyut Saha**      Assistant Professor | Sister Nivedita University
+**Dr. Bidyut Saha**
 
 Developed as part of an AI-powered Medical Imaging and Chest X-Ray Disease Detection research project.
 If you find this project useful, consider giving it a star.
