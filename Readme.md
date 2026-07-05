@@ -5,7 +5,13 @@
 </p>
 
 <p align="center">
-  <img src="public/Screenshot.png" alt="ChestX Thumbnail" width="600"/>
+  <img src="public/Screenshot.png" alt="ChestX Thumbnail" width="700"/>
+</p>
+
+<p align="center">
+  <img src="public/Home.png" alt="Mobile Screenshot 1" width="220"/>
+  &nbsp;&nbsp;&nbsp;
+  <img src="public/Report.png" alt="Mobile Screenshot 2" width="220"/>
 </p>
 
 
