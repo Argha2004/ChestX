@@ -4,16 +4,6 @@
   <img src="public/ChestX.png" alt="ChestX Thumbnail" width="900"/>
 </p>
 
-<p align="center">
-  <img src="public/Screenshot.png" alt="ChestX Thumbnail" width="700"/>
-</p>
-
-<p align="center">
-  <img src="public/Home.jpeg" alt="Mobile Screenshot 1" width="220"/>
-  &nbsp;&nbsp;&nbsp;
-  <img src="public/Report.jpeg" alt="Mobile Screenshot 2" width="220"/>
-</p>
-
 
 ## Overview
 
