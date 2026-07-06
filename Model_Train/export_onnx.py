@@ -1,242 +1,88 @@
-# ================================================================
-#  Export.py     //PyTorch .pth  →  ONNX  →  INT8 Quantized ONNX
+#========================================================
+# convert.py — Convert a ChestX .pth checkpoint into a True-CAM-compatible float32 ONNX.
 #
-#  Run this on Kaggle AFTER training is complete.
+# Writes into the output folder:
+#   model_float32.onnx        logits [1,14] + feature maps [1,1280,12,12]
+#   classifier_weights.bin    [14,1280] float32 (needed for on-device True CAM)
 #
-#  Steps this script does:
-#    1. Loads your best_model.pth checkpoint
-#    2. Exports to model.onnx  (~85 MB, float32)
-#    3. Quantizes to model_int8.onnx  (~22 MB, INT8)
-#    4. Verifies the output matches the original model
-#
-#  Install first:
-#    !pip install onnx onnxruntime -q
-# ================================================================
+#========================================================
+
+import os
+import sys
 
 import torch
 import torch.nn as nn
-import numpy as np
-from torchvision import models
+import torchvision.models as tvm
 
-# ── onnx tools ───────────────────────────────────────────────
-import onnx
-import onnxruntime , onnxscript
-from onnxruntime.quantization import (
-    quantize_dynamic,
-    QuantType,
-)
-
-# ── config ───────────────────────────────────────────────────
-CHECKPOINT_PATH = ""                    # Model Checkpoint Path
-ONNX_PATH       = ".../model.onnx"      # ONNX model Save Path
-ONNX_INT8_PATH  = ".../model_int8.onnx" # INT8 Quantized ONNX model Save Path
-IMG_SIZE        = 384
-NUM_CLASSES     = 14
-
-DISEASE_LABELS = [
-    "Atelectasis", "Consolidation", "Infiltration",
-    "Pneumothorax", "Edema", "Emphysema", "Fibrosis",
-    "Effusion", "Pneumonia", "Pleural_Thickening",
-    "Cardiomegaly", "Nodule", "Mass", "Hernia",
-]
+NUM_CLASSES = 14
+IMG_SIZE = 384
+DROPOUT = 0.2
+OPSET = 13
 
 
-# ================================================================
-#  STEP 1 — Rebuild model and load checkpoint
-# ================================================================
-def load_model(checkpoint_path: str, device: torch.device) -> nn.Module:
-    print("\n[Step 1] Loading checkpoint …")
+class WithFeatures(nn.Module):
+    """forward() returns (logits, last-conv feature maps)."""
+    def __init__(self, base):
+        super().__init__()
+        self.base = base
 
-    model = models.efficientnet_v2_s(weights=None)
-    in_features = model.classifier[1].in_features
-    model.classifier = nn.Sequential(
-        nn.Dropout(p=0.3, inplace=False),   # inplace=False required for ONNX export
-        nn.Linear(in_features, NUM_CLASSES),
-    )
-
-    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model_state_dict"])
-    model.eval()
-    model = model.to(device)
-
-    print(f"  ✔ Loaded checkpoint from epoch {ckpt.get('epoch','?')} "
-          f"| AUC = {ckpt.get('auc', 0):.4f}")
-    return model
+    def forward(self, x):
+        feats = self.base.features(x)               # [1, 1280, 12, 12]
+        pooled = torch.flatten(self.base.avgpool(feats), 1)
+        logits = self.base.classifier(pooled)        # [1, 14]
+        return logits, feats
 
 
-# ================================================================
-#  STEP 2 — Export to ONNX
-# ================================================================
-def export_to_onnx(model: nn.Module, onnx_path: str, img_size: int, device: torch.device):
-    print(f"\n[Step 2] Exporting to ONNX → {onnx_path} …")
-
-    # dummy input — batch=1, RGB, img_size × img_size
-    dummy = torch.randn(1, 3, img_size, img_size, device=device)
-
-    torch.onnx.export(
-        model,
-        dummy,
-        onnx_path,
-        export_params=True,
-        opset_version    = 18,           # latest stable opset
-        input_names      = ["image"],
-        output_names     = ["logits"],
-        dynamic_axes     = {
-            "image":  {0: "batch_size"},  # batch dimension is dynamic
-            "logits": {0: "batch_size"},
-        },
-        do_constant_folding = True,
-        dynamo = False,
-        verbose          = False,
-    )
-
-    # verify the ONNX file is valid
-    onnx_model = onnx.load(onnx_path)
-    onnx.checker.check_model(onnx_model)
-    print(f"  ✔ ONNX model valid")
-
-    # check file size
-    import os
-    size_mb = os.path.getsize(onnx_path) / 1e6
-    print(f"  ✔ File size: {size_mb:.1f} MB")
+def load_state_dict(pth_path):
+    ckpt = torch.load(pth_path, map_location="cpu", weights_only=False)
+    sd = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt)) if isinstance(ckpt, dict) else ckpt
+    return {k.replace("module.", ""): v for k, v in sd.items()}
 
 
-# ================================================================
-#  STEP 3 — INT8 Dynamic Quantization
-# ================================================================
-def quantize_model(onnx_path: str, int8_path: str):
-    print(f"\n[Step 3] Quantizing → {int8_path} …")
-
-    quantize_dynamic(
-        model_input    = onnx_path,
-        model_output   = int8_path,
-        weight_type    = QuantType.QInt8,
-    )
-
-    import os
-    size_mb = os.path.getsize(int8_path) / 1e6
-    print(f"  ✔ Quantized model size: {size_mb:.1f} MB")
-
-
-# ================================================================
-#  STEP 4 — Verify both models give the same predictions
-# ================================================================
-def verify_models(
-    model:      nn.Module,
-    onnx_path:  str,
-    int8_path:  str,
-    img_size:   int,
-    device:     torch.device,
-):
-    print("\n[Step 4] Verifying outputs match …")
-
-    # random test image
-    dummy_np = np.random.randn(1, 3, img_size, img_size).astype(np.float32)
-    dummy_t  = torch.from_numpy(dummy_np).to(device)
-
-    # PyTorch output
-    with torch.no_grad():
-        pt_logits = model(dummy_t).cpu().numpy()
-        pt_probs  = 1 / (1 + np.exp(-pt_logits))   # sigmoid
-
-    # ONNX float32 output
-    sess_f32 = onnxruntime.InferenceSession(onnx_path)
-    f32_logits = sess_f32.run(
-        None, {"image": dummy_np}
-    )[0]
-    f32_probs = 1 / (1 + np.exp(-f32_logits))
-
-    # ONNX INT8 output
-    sess_int8 = onnxruntime.InferenceSession(int8_path)
-    int8_logits = sess_int8.run(
-        None, {"image": dummy_np}
-    )[0]
-    int8_probs = 1 / (1 + np.exp(-int8_logits))
-
-    max_diff_f32  = np.abs(pt_probs - f32_probs).max()
-    max_diff_int8 = np.abs(pt_probs - int8_probs).max()
-
-    print(f"  Max prob diff  PyTorch vs ONNX f32 : {max_diff_f32:.6f}  "
-          f"{'✔ OK' if max_diff_f32 < 0.001 else '⚠ CHECK'}")
-    print(f"  Max prob diff  PyTorch vs ONNX int8 : {max_diff_int8:.6f}  "
-          f"{'✔ OK' if max_diff_int8 < 0.01 else '⚠ CHECK'}")
-
-    # print sample disease probabilities
-    print("\n  Sample probabilities (first test image):")
-    for i, disease in enumerate(DISEASE_LABELS):
-        print(
-            f"    {disease:<22}  "
-            f"PT={pt_probs[0,i]:.4f}  "
-            f"f32={f32_probs[0,i]:.4f}  "
-            f"int8={int8_probs[0,i]:.4f}"
-        )
-
-
-# ================================================================
-#  STEP 5 — Print Android integration instructions
-# ================================================================
-def print_android_instructions(int8_path: str):
-    print("\n" + "="*60)
-    print("  ANDROID INTEGRATION INSTRUCTIONS")
-    print("="*60)
-    print(f"""
-  1. Download this file from Kaggle:
-       {int8_path}
-
-  2. In Android Studio, copy it to:
-       app/src/main/assets/model_int8.onnx
-
-  3. Add to app/build.gradle (Module):
-       implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.0'
-
-  4. The model expects:
-       • Input  name : "image"
-       • Input  shape: [1, 3, {IMG_SIZE}, {IMG_SIZE}]  float32
-       • Output name : "logits"
-       • Output shape: [1, 14]  float32  (raw logits, apply sigmoid)
-
-  5. Preprocessing in Kotlin (same as Python val_transform):
-       • Resize to {IMG_SIZE}×{IMG_SIZE}
-       • Normalize: mean=[0.485, 0.456, 0.406]
-                    std =[0.229, 0.224, 0.225]
-       • Layout: NCHW float32 array
-
-  6. Disease output order (index 0–13):
-    """)
-    for i, d in enumerate(DISEASE_LABELS):
-        print(f"       [{i:2d}] {d}")
-    print()
-
-
-# ================================================================
-#  MAIN
-# ================================================================
 def main():
-    print("="*60)
-    print("  PyTorch → ONNX → INT8  Export Pipeline")
-    print("="*60)
+    # ── 1) get the input .pth path ──
+    pth_path = sys.argv[1] if len(sys.argv) > 1 else input("Path to your .pth file: ").strip('"')
+    if not os.path.isfile(pth_path):
+        sys.exit(f"❌ File not found: {pth_path}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
+    # ── 2) get the output folder ──
+    out_dir = sys.argv[2] if len(sys.argv) > 2 else input("Output folder (Enter = current folder): ").strip('"')
+    out_dir = out_dir or "."
+    os.makedirs(out_dir, exist_ok=True)
+    onnx_path = os.path.join(out_dir, "model_float32.onnx")
+    weights_path = os.path.join(out_dir, "classifier_weights.bin")
 
-    # Step 1
-    model = load_model(CHECKPOINT_PATH, device)
+    # ── 3) build model + load weights (strict=True catches any architecture mismatch) ──
+    model = tvm.efficientnet_v2_s(weights=None, num_classes=NUM_CLASSES, dropout=DROPOUT)
+    sd = load_state_dict(pth_path)
+    model.load_state_dict(sd, strict=True)
+    model.eval().float()
+    print("✅ Weights loaded successfully.")
 
-    # Step 2
-    export_to_onnx(model, ONNX_PATH, IMG_SIZE, device)
+    # ── 4) sanity check (catches saturated/garbage logits early) ──
+    with torch.no_grad():
+        probs = torch.sigmoid(model(torch.randn(1, 3, IMG_SIZE, IMG_SIZE)))[0]
+        print("Sample outputs:", [round(p, 3) for p in probs[:5].tolist()])
+        if probs.min().item() > 0.9:
+            print("⚠️  All values are near 1.0 — something may be wrong.")
 
-    # Step 3
-    quantize_model(ONNX_PATH, ONNX_INT8_PATH)
+    # ── 5) export the ONNX (logits + feature maps) ──
+    export_model = WithFeatures(model).eval().float()
+    dummy = torch.randn(1, 3, IMG_SIZE, IMG_SIZE)
+    torch.onnx.export(
+        export_model, dummy, onnx_path,
+        input_names=["image"], output_names=["logits", "features"],
+        opset_version=OPSET, do_constant_folding=True,
+    )
+    print(f"✅ Saved {onnx_path}")
 
-    # Step 4
-    verify_models(model, ONNX_PATH, ONNX_INT8_PATH, IMG_SIZE, device)
+    # ── 6) dump the classifier weights for True CAM ──
+    W = sd["classifier.1.weight"].detach().float().cpu().numpy()   # [14, 1280]
+    W.astype("<f4").tofile(weights_path)
+    print(f"✅ Saved {weights_path}  shape={W.shape}")
 
-    # Step 5
-    print_android_instructions(ONNX_INT8_PATH)
-
-    print("\n[Done] Export complete!")
-    print(f"  Float32 ONNX : {ONNX_PATH}")
-    print(f"  INT8 ONNX    : {ONNX_INT8_PATH}  ← use this in Android")
+    print(f"\nDone! Files are in: {os.path.abspath(out_dir)}")
+    print("Copy both files into your app's assets folder.")
 
 
 if __name__ == "__main__":
