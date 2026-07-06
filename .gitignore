@@ -154,7 +154,8 @@ results/
 outputs/
 checkpoints/
 weights/
-
+build/
+assets/
 # =========================
 
 # Grad-CAM Outputs
