@@ -40,19 +40,10 @@ Android application for chest X-ray disease classification using Jetpack Compose
 3. Navigate to the `android` folder
 4. Click "OK"
 
-### 2. Configure API Endpoint
+### 2. Configure Trained Model
 
-Update the backend URL in `RetrofitClient.kt`:
+Make a "assets" folder Then Copy Your Train Model into That Folder.
 
-```kotlin
-// For Android Emulator (development)
-private const val BASE_URL = "http://10.0.2.2:8000/"
-
-// For Physical Device (replace with your computer's IP)
-private const val BASE_URL = "http://192.168.1.XXX:8000/"
-
-// For Production
-private const val BASE_URL = "https://your-api-domain.com/"
 ```
 
 ### 3. Sync Gradle
@@ -110,25 +101,9 @@ android/app/src/main/java/com/medical/chestxray/
 
 ### ViewModels
 
-- **AnalysisViewModel**: Manages image analysis and API communication
+- **AnalysisViewModel**: Manages image analysis
 - **DashboardViewModel**: Loads and manages dashboard statistics
 
-### API Integration
-
-The app communicates with the backend using Retrofit:
-
-```kotlin
-interface ApiService {
-    @Multipart
-    @POST("api/analyze")
-    suspend fun analyzeXRay(@Part file: MultipartBody.Part): AnalysisResponse
-    
-    @GET("api/history")
-    suspend fun getHistory(@Query("limit") limit: Int): HistoryResponse
-    
-    @GET("api/statistics")
-    suspend fun getStatistics(): StatisticsResponse
-}
 ```
 
 ## Permissions
