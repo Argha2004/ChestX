@@ -14,6 +14,7 @@ Android application for chest X-ray disease classification using Jetpack Compose
 - App Lock
 - Per Class AUC Performance of Model
 - More Details Option of Per Finding
+- Update Notification System
 
 ## Tech Stack
 
@@ -21,7 +22,6 @@ Android application for chest X-ray disease classification using Jetpack Compose
 - **UI Framework:** Jetpack Compose
 - **Design System:** Material 3
 - **Architecture:** MVVM with ViewModels
-- **Networking:** Retrofit + OkHttp
 - **Image Loading:** Coil
 - **Navigation:** Jetpack Navigation Compose
 - **Async:** Kotlin Coroutines + Flow
