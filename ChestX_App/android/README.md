@@ -243,6 +243,10 @@ The app follows Material Design accessibility guidelines:
 - [ ] Multi-language support
 - [ ] Pre-analysis image sanity check
 - [ ] TTA-based confidence agreement
+- [ ] Live Framing Guide
+- [ ] Haptic Feedback
+- [ ] Dynamic Colour
+- [ ] Local-only diagnostic log viewer
 
 ## Contributing
 
