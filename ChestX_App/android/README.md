@@ -258,5 +258,5 @@ MIT License
 
 ## Author
 
-Arghadeep Pakhira
-Dr. Bidyut Saha
+- Arghadeep Pakhira
+- Dr. Bidyut Saha
