@@ -290,11 +290,11 @@ python train.py
 
 ## Future Improvements
 
-* TensorFlow Lite Deployment
-* Multi-language Support
-* Doctor Dashboard
-* Patient Management System
-* Real-Time Clinical Integration
+- [ ] TensorFlow Lite Deployment
+- [ ] Multi-language Support
+- [ ] Doctor Dashboard
+- [ ] Patient Management System
+- [ ] Better CNN Model Integration
 
 ---
 
@@ -320,9 +320,8 @@ This project is intended for educational, research, and development purposes onl
 
 ## Author
 
-**Arghadeep Pakhira**
-
-**Dr. Bidyut Saha**
+- **Arghadeep Pakhira**
+- **Dr. Bidyut Saha**
 
 Developed as part of an AI-powered Medical Imaging and Chest X-Ray Disease Detection research project.
 If you find this project useful, consider giving it a star.
