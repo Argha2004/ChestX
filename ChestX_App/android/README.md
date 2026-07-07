@@ -4,13 +4,16 @@ Android application for chest X-ray disease classification using Jetpack Compose
 
 ## Features
 
-- 📸 Upload X-ray images from gallery or camera
-- 🤖 AI-powered disease classification
-- 📊 Real-time analytics dashboard
-- 📈 Scan history tracking
-- 🎨 Modern Material 3 design
-- 🔥 Heatmap visualization
-- 📄 PDF report generation
+- Upload X-ray images from gallery or camera
+- CNN-powered disease classification
+- Real-time analytics dashboard
+- Scan history tracking
+- Modern Material 3 design
+- Heatmap visualization
+- PDF report generation
+- App Lock
+- Per Class AUC Performance of Model
+- More Details Option of Per Finding
 
 ## Tech Stack
 
@@ -40,27 +43,13 @@ Android application for chest X-ray disease classification using Jetpack Compose
 3. Navigate to the `android` folder
 4. Click "OK"
 
-### 2. Configure API Endpoint
 
-Update the backend URL in `RetrofitClient.kt`:
-
-```kotlin
-// For Android Emulator (development)
-private const val BASE_URL = "http://10.0.2.2:8000/"
-
-// For Physical Device (replace with your computer's IP)
-private const val BASE_URL = "http://192.168.1.XXX:8000/"
-
-// For Production
-private const val BASE_URL = "https://your-api-domain.com/"
-```
-
-### 3. Sync Gradle
+### 2. Sync Gradle
 
 - Click "Sync Now" when prompted
 - Wait for dependencies to download
 
-### 4. Run the App
+### 3. Run the App
 
 1. Connect an Android device or start an emulator
 2. Click "Run" (▶️) in Android Studio
@@ -113,23 +102,6 @@ android/app/src/main/java/com/medical/chestxray/
 - **AnalysisViewModel**: Manages image analysis and API communication
 - **DashboardViewModel**: Loads and manages dashboard statistics
 
-### API Integration
-
-The app communicates with the backend using Retrofit:
-
-```kotlin
-interface ApiService {
-    @Multipart
-    @POST("api/analyze")
-    suspend fun analyzeXRay(@Part file: MultipartBody.Part): AnalysisResponse
-    
-    @GET("api/history")
-    suspend fun getHistory(@Query("limit") limit: Int): HistoryResponse
-    
-    @GET("api/statistics")
-    suspend fun getStatistics(): StatisticsResponse
-}
-```
 
 ## Permissions
 
@@ -223,15 +195,6 @@ Update the API response models in `data/model/Models.kt` to match your backend.
 
 ## Troubleshooting
 
-### Issue: Cannot connect to backend
-
-**Solution:**
-- Verify backend is running
-- Check network connectivity
-- Update BASE_URL in `RetrofitClient.kt`
-- For emulator, use `10.0.2.2` instead of `localhost`
-- For physical device, ensure same WiFi network
-
 ### Issue: Image upload fails
 
 **Solution:**
@@ -277,14 +240,9 @@ The app follows Material Design accessibility guidelines:
 ## Future Enhancements
 
 - [ ] Offline mode with local database
-- [ ] User authentication
 - [ ] Multi-language support
-- [ ] Dark/Light theme toggle
-- [ ] PDF report generation
-- [ ] Share results via email/messaging
-- [ ] Batch image upload
-- [ ] Advanced filtering and search
-- [ ] Push notifications
+- [ ] Pre-analysis image sanity check
+- [ ] TTA-based confidence agreement
 
 ## Contributing
 
@@ -297,3 +255,8 @@ The app follows Material Design accessibility guidelines:
 ## License
 
 MIT License
+
+## Author
+
+Arghadeep Pakhira
+Dr. Bidyut Saha
