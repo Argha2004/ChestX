@@ -320,8 +320,8 @@ This project is intended for educational, research, and development purposes onl
 
 ## Author
 
-- **Arghadeep Pakhira**
-- **Dr. Bidyut Saha**
+- **Arghadeep Pakhira:** `Student` `Sister Nivedita University`
+- **Dr. Bidyut Saha:** `Assistant Professor` `Sister Nivedita University`
 
 Developed as part of an AI-powered Medical Imaging and Chest X-Ray Disease Detection research project.
 If you find this project useful, consider giving it a star.
