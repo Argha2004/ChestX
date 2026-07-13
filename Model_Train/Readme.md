@@ -458,7 +458,7 @@ An end-to-end medical AI project consisting of:
 
 ## Connect
 
-GitHub: https://github.com/YOUR_USERNAME
+GitHub: https://github.com/Argha2004
 
 If you find this project useful, please consider giving the repository a ⭐.
 
