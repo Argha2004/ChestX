@@ -431,8 +431,8 @@ AUC is used as the primary model selection metric.
 
 # Author
 
-- **Arghadeep Pakhira**
-- **Dr. Bidyut Saha**
+- **Arghadeep Pakhira:** `Student` `Sister Nivedita University`
+- **Dr. Bidyut Saha:** `Assistant Professor` `Sister Nivedita University`
 
 ## Areas of Interest
 
