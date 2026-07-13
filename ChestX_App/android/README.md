@@ -262,5 +262,5 @@ MIT License
 
 ## Author
 
-- Arghadeep Pakhira
-- Dr. Bidyut Saha
+- Arghadeep Pakhira: `Sister Nivedita University`
+- Dr. Bidyut Saha: `Sister Nivedita University`
