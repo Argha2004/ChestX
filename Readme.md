@@ -1,9 +1,11 @@
 # ChestX: AI-Powered Chest X-Ray Disease Detection System
 
+### Diagram
 <p align="center">
   <img src="public/ChestX.png" width="900" />
 </p>
 
+### Screenshots
 <p align="center">
   <img src="public/Home.jpeg" width="200" />
   <img src="public/Diagnostic.jpeg" width="200" />
